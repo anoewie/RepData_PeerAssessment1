@@ -7,19 +7,115 @@ output:
 
 
 ## Loading and preprocessing the data
-
+This code assumes the "activity.csv" file is present on the current working directory.
+```{r}
+activityInIntervals = read.csv("activity.csv")
+```
 
 
 ## What is mean total number of steps taken per day?
+Using the [aggregate](http://stat.ethz.ch/R-manual/R-patched/library/stats/html/aggregate.html) function to group by day. 
 
-
+```{r}
+totalActivityPerDay = aggregate(activityInIntervals$steps,
+                           by = list(activityInIntervals$date),
+                           FUN = sum ) #Grouping by day, summing values.
+mean(as.numeric(unlist(totalActivityPerDay[2]))
+     ,na.rm = TRUE) #Generating the mean, ignoring NAs.
+```
 
 ## What is the average daily activity pattern?
+The code which generates the time series plot follows:
+```{r}
+dailyActivity = aggregate(as.numeric(activityInIntervals$steps),
+                          by = list(activityInIntervals$interval),
+                           FUN = function(x){mean(x,na.rm = TRUE)} ) 
 
+plot(as.numeric(unlist(dailyActivity[1])),
+     as.numeric(unlist(dailyActivity[2])),
+     type = "l", 
+     xlab = "Interval",
+     ylab = "Average number of steps taken",
+     main = "Average Daily Activity")     
+     
+```
 
+The following code will print out the "most walked" interval
+```{r}
+dailyActivity[which.max(as.numeric(unlist(dailyActivity[2]))),1]
+```
 
 ## Imputing missing values
+1.This will count number of rows with NAs in them.
+```{r}
+length(which(is.na(activityInIntervals$steps)))
+```
+(2,3).I will replace all na's with thier 5 minutes interval mean. I chose this strategy as it will have the least effect on both 5 minute intervals mean(which will not change at all) and whole day mean.
+```{r}
+modifiedActivityInIntervals = activityInIntervals #first create a copy
 
-
-
+for (i in which(is.na(activityInIntervals$steps))){
+  modifiedActivityInIntervals$steps[i] <-
+    dailyActivity[which(dailyActivity[1] == activityInIntervals$interval[i])[1],2] #updating missing values
+}
+```
+4.
+Comparing values before and after the change in 3.
+Histogram of total number of steps a day before:
+```{r}
+hist(unlist(totalActivityPerDay[2]), main = "Total steps per day prior modifing")
+```
+After the modification:
+```{r}
+totalActivityPerDay = aggregate(modifiedActivityInIntervals$steps,
+                           by = list(modifiedActivityInIntervals$date),
+                           FUN = sum ) #updating 
+hist(unlist(totalActivityPerDay[2]), main = "Total steps per day after modifing")
+```
+Now caclulating the new mean and median:
+```{r}
+mean(unlist(totalActivityPerDay[2]))
+median(unlist(totalActivityPerDay[2]))
+```
+As you can see, all of the above has not changed at all when imputing missing values with my selected strategy.
 ## Are there differences in activity patterns between weekdays and weekends?
+This code will add the factor variable, day, specifing is the day weekday or weekend.
+```{r}
+
+isWeekday <- function(dates){
+  days = weekdays(as.Date(dates))
+  days = (days == "Saturday" | days == "Sunday")
+  days
+  }#helper function
+
+activityInIntervals$day <- 
+  factor(isWeekday(activityInIntervals$date),labels=c("weekday","weekend")) #adding the factor variable
+```
+Now comparing weekdays and weekends:
+```{r}
+weekdayActivityInIntervals = activityInIntervals[which(activityInIntervals$day == "weekday"),]
+weekdayActivity = aggregate(as.numeric(weekdayActivityInIntervals$steps),
+                          by = list(weekdayActivityInIntervals$interval),
+                           FUN = function(x){mean(x,na.rm = TRUE)} ) 
+
+weekendActivityInIntervals = activityInIntervals[which(activityInIntervals$day == "weekend"),]
+weekendActivity = aggregate(as.numeric(weekendActivityInIntervals$steps),
+                          by = list(weekendActivityInIntervals$interval),
+                           FUN = function(x){mean(x,na.rm = TRUE)} ) 
+par(mfrow =c(1,2))
+plot(as.numeric(unlist(weekdayActivity[1])),
+     as.numeric(unlist(weekdayActivity[2])),
+     type = "l", 
+     xlab = "Interval",
+     ylab = "Average number of steps taken",
+     main = "Average Weekday Activity")   
+
+ plot(as.numeric(unlist(weekendActivity[1])),
+     as.numeric(unlist(weekendActivity[2])),
+     type = "l", 
+     xlab = "Interval",
+     ylab = "Average number of steps taken",
+     main = "Average Weekend Activity")     
+
+     
+```
